@@ -29,6 +29,7 @@ import warnings
 import logging
 import hashlib
 
+import pylev
 import requests
 import requests_cache
 from requests_cache.backends.base import _to_bytes, _DEFAULT_HEADERS
@@ -175,7 +176,7 @@ class BaseUI(object):
     >>> import random
     >>> from tvdb_ui import BaseUI
     >>> class RandomUI(BaseUI):
-    ...    def selectSeries(self, allSeries):
+    ...    def selectSeries(self, series, allSeries):
     ...            import random
     ...            return random.choice(allSeries)
 
@@ -198,8 +199,16 @@ class BaseUI(object):
             )
             self.log = logging.getLogger(__name__)
 
-    def selectSeries(self, allSeries):
-        return allSeries[0]
+    def selectSeries(self, series, allSeries):
+        """The results the TVDB returns are sometimes poorly ranked and the first result is often not what we're looking
+        for. This function attempts to find the closest match between a series named in the results and the user's
+        search query by calculating the Levenshtein edit distance between the search query (series) and each of the
+        results (allSeries) in order to find the result that most precisely matches our query
+        """
+        distances = []
+        for show in allSeries:
+            distances.append(pylev.levenshtein(series, show["seriesName"]))
+        return allSeries[distances.index(min(distances))]
 
 
 class ConsoleUI(BaseUI):
@@ -235,7 +244,7 @@ class ConsoleUI(BaseUI):
             else:
                 print(output)
 
-    def selectSeries(self, allSeries):
+    def selectSeries(self, series, allSeries):
         self._displaySeries(allSeries)
 
         if len(allSeries) == 1:
@@ -941,7 +950,7 @@ class Tvdb:
                 LOG.debug('Interactively selecting show using ConsoleUI')
                 ui = ConsoleUI(config=self.config)
 
-        return ui.selectSeries(all_series)
+        return ui.selectSeries(series, all_series)
 
     def available_languages(self):
         """Returns a list of the available language abbreviations

@@ -5,3 +5,4 @@ pytest-cov==2.8
 pytest-env==0.6
 flake8==3.8
 pep8-naming==0.10
+pylev
